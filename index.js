@@ -49,18 +49,22 @@ class Player {
 }
 
 class Ghost {
+  static speed = 4;
+
   constructor({ position, velocity, color = "red" }) {
     this.position = position;
     this.velocity = velocity;
     this.radius = 15;
     this.color = color;
     this.prevCollisions = [];
+    this.speed = 4;
+    this.scared = false;
   }
 
   draw() {
     ctx.beginPath();
     ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
+    ctx.fillStyle = this.scared ? "blue" : this.color;
     ctx.fill();
     ctx.closePath();
   }
@@ -88,8 +92,25 @@ class Pellet {
   }
 }
 
+class PowerUp {
+  constructor({ position }) {
+    this.position = position;
+
+    this.radius = 8;
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "violet";
+    ctx.fill();
+    ctx.closePath();
+  }
+}
+
 const pellets = [];
 const boundaries = [];
+const powerUps = [];
 const ghost = [
   new Ghost({
     position: {
@@ -97,9 +118,44 @@ const ghost = [
       y: Boundary.height + Boundary.height / 2,
     },
     velocity: {
-      x: 5,
+      x: Ghost.speed,
       y: 0,
     },
+  }),
+  new Ghost({
+    position: {
+      x: Boundary.width * 6 + Boundary.width / 2,
+      y: Boundary.height * 7 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed,
+      y: 0,
+    },
+    color: "purple",
+  }),
+
+  new Ghost({
+    position: {
+      x: Boundary.width * 3 + Boundary.width / 2,
+      y: Boundary.height * 7 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed,
+      y: 0,
+    },
+    color: "pink",
+  }),
+
+  new Ghost({
+    position: {
+      x: Boundary.width * 3 + Boundary.width / 2,
+      y: Boundary.height * 9 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed,
+      y: 0,
+    },
+    color: "green",
   }),
 ];
 const player = new Player({
@@ -345,25 +401,38 @@ map.forEach((row, i) => {
           })
         );
         break;
+      case "p":
+        powerUps.push(
+          new PowerUp({
+            position: {
+              x: j * Boundary.width + Boundary.width / 2,
+              y: i * Boundary.height + Boundary.height / 2,
+            },
+          })
+        );
+        break;
     }
   });
 });
 
 function circleCollidesWithRectangle({ circle, rectangle }) {
+  const padding = Boundary.width / 2 - circle.radius - 1;
   return (
     circle.position.y - circle.radius + circle.velocity.y <=
-      rectangle.position.y + rectangle.height &&
+      rectangle.position.y + rectangle.height + padding &&
     circle.position.x + circle.radius + circle.velocity.x >=
-      rectangle.position.x &&
+      rectangle.position.x - padding &&
     circle.position.y + circle.radius + circle.velocity.y >=
-      rectangle.position.y &&
+      rectangle.position.y - padding &&
     circle.position.x - circle.radius + circle.velocity.x <=
-      rectangle.position.x + rectangle.width
+      rectangle.position.x + rectangle.width + padding
   );
 }
 
+let animationId;
+
 function animate() {
-  requestAnimationFrame(animate);
+  animationId = requestAnimationFrame(animate);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (keys.w.pressed && lastKey === "w") {
@@ -456,7 +525,55 @@ function animate() {
     }
   }
 
-  for (let i = pellets.length - 1; 0 < i; i--) {
+  //detect collision between ghosts and player
+
+  //ghost touches player
+  for (let i = ghost.length - 1; 0 <= i; i--) {
+    const actualGhost = ghost[i];
+
+    if (
+      Math.hypot(
+        actualGhost.position.x - player.position.x,
+        actualGhost.position.y - player.position.y
+      ) <
+      actualGhost.radius + player.radius
+    ) {
+      if (actualGhost.scared) {
+        ghost.splice(i, 1);
+      } else {
+        cancelAnimationFrame(animationId);
+      }
+    }
+  }
+
+  //power ups
+  for (let i = powerUps.length - 1; 0 <= i; i--) {
+    const powerUp = powerUps[i];
+    powerUp.draw();
+
+    //player collides with powerup
+    if (
+      Math.hypot(
+        powerUp.position.x - player.position.x,
+        powerUp.position.y - player.position.y
+      ) <
+      powerUp.radius + player.radius
+    ) {
+      powerUps.splice(i, 1);
+
+      //make ghosts scared
+
+      ghost.forEach((ghost) => {
+        ghost.scared = true;
+
+        setTimeout(() => {
+          ghost.scared = false;
+        }, 5000);
+      });
+    }
+  }
+
+  for (let i = pellets.length - 1; 0 <= i; i--) {
     const pellet = pellets[i];
 
     pellet.draw();
@@ -499,7 +616,7 @@ function animate() {
           circle: {
             ...ghost,
             velocity: {
-              x: 5,
+              x: ghost.speed,
               y: 0,
             },
           },
@@ -514,7 +631,7 @@ function animate() {
           circle: {
             ...ghost,
             velocity: {
-              x: -5,
+              x: -ghost.speed,
               y: 0,
             },
           },
@@ -531,7 +648,7 @@ function animate() {
             ...ghost,
             velocity: {
               x: 0,
-              y: -5,
+              y: -ghost.speed,
             },
           },
           rectangle: boundary,
@@ -547,7 +664,7 @@ function animate() {
             ...ghost,
             velocity: {
               x: 0,
-              y: 5,
+              y: ghost.speed,
             },
           },
           rectangle: boundary,
@@ -556,7 +673,48 @@ function animate() {
         collisions.push("down");
       }
     });
-    console.log(collisions);
+
+    if (collisions.length > ghost.prevCollisions.length)
+      ghost.prevCollisions = collisions;
+
+    if (JSON.stringify(collisions) !== JSON.stringify(ghost.prevCollisions)) {
+      console.log(collisions);
+      console.log(ghost.prevCollisions);
+
+      if (ghost.velocity.x > 0) ghost.prevCollisions.push("right");
+      else if (ghost.velocity.x < 0) ghost.prevCollisions.push("left");
+      if (ghost.velocity.y < 0) ghost.prevCollisions.push("up");
+      else if (ghost.velocity.y > 0) ghost.prevCollisions.push("down");
+
+      const pathways = ghost.prevCollisions.filter((collision) => {
+        return !collisions.includes(collision);
+      });
+      console.log({ pathways });
+
+      const direction = pathways[Math.floor(Math.random() * pathways.length)];
+      console.log(direction);
+
+      switch (direction) {
+        case "down":
+          ghost.velocity.y = ghost.speed;
+          ghost.velocity.x = 0;
+          break;
+        case "up":
+          ghost.velocity.y = -ghost.speed;
+          ghost.velocity.x = 0;
+          break;
+        case "right":
+          ghost.velocity.y = 0;
+          ghost.velocity.x = ghost.speed;
+          break;
+        case "left":
+          ghost.velocity.y = 0;
+          ghost.velocity.x = -ghost.speed;
+          break;
+      }
+
+      ghost.prevCollisions = [];
+    }
   });
 }
 
