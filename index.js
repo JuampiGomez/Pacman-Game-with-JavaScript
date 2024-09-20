@@ -6,9 +6,6 @@ const scoreEl = document.getElementById("scoreEl");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let lastKey = "";
-let score = 0;
-
 const pellets = [];
 const powerUps = [];
 const ghost = [
@@ -22,41 +19,39 @@ const ghost = [
       y: 0,
     },
   }),
-  new Ghost({
-    position: {
-      x: Boundary.width * 6 + Boundary.width / 2,
-      y: Boundary.height * 7 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed,
-      y: 0,
-    },
-    color: "purple",
-  }),
-
-  new Ghost({
-    position: {
-      x: Boundary.width * 3 + Boundary.width / 2,
-      y: Boundary.height * 7 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed,
-      y: 0,
-    },
-    color: "pink",
-  }),
-
-  new Ghost({
-    position: {
-      x: Boundary.width * 3 + Boundary.width / 2,
-      y: Boundary.height * 9 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed,
-      y: 0,
-    },
-    color: "green",
-  }),
+  // new Ghost({
+  //   position: {
+  //     x: Boundary.width * 6 + Boundary.width / 2,
+  //     y: Boundary.height * 7 + Boundary.height / 2,
+  //   },
+  //   velocity: {
+  //     x: Ghost.speed,
+  //     y: 0,
+  //   },
+  //   color: "purple",
+  // }),
+  // new Ghost({
+  //   position: {
+  //     x: Boundary.width * 3 + Boundary.width / 2,
+  //     y: Boundary.height * 7 + Boundary.height / 2,
+  //   },
+  //   velocity: {
+  //     x: Ghost.speed,
+  //     y: 0,
+  //   },
+  //   color: "pink",
+  // }),
+  // new Ghost({
+  //   position: {
+  //     x: Boundary.width * 3 + Boundary.width / 2,
+  //     y: Boundary.height * 9 + Boundary.height / 2,
+  //   },
+  //   velocity: {
+  //     x: Ghost.speed,
+  //     y: 0,
+  //   },
+  //   color: "green",
+  // }),
 ];
 
 const player = new Player({
@@ -85,7 +80,10 @@ const keys = {
   },
 };
 
+let lastKey = "";
+let score = 0;
 let animationId;
+let prevMs = Date.now();
 
 const boundaries = generateBoundaries();
 
@@ -93,10 +91,14 @@ function animate() {
   animationId = requestAnimationFrame(animate);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (keys.w.pressed && lastKey === "w") player.moveUp(boundaries);
-  else if (keys.a.pressed && lastKey === "a") player.moveLeft(boundaries);
-  else if (keys.s.pressed && lastKey === "s") player.moveDown(boundaries);
-  else if (keys.d.pressed && lastKey === "d") player.moveUp(boundaries);
+  const currentMs = Date.now();
+  const delta = (currentMs - prevMs) / 1000;
+  prevMs = currentMs;
+
+  if (keys.w.pressed && lastKey === "w") player.move("up");
+  else if (keys.a.pressed && lastKey === "a") player.move("left");
+  else if (keys.s.pressed && lastKey === "s") player.move("down");
+  else if (keys.d.pressed && lastKey === "d") player.move("right");
 
   //detect collision between ghosts and player
 
@@ -171,17 +173,8 @@ function animate() {
 
   boundaries.forEach((boundary) => {
     boundary.draw();
-    if (
-      circleCollidesWithRectangle({
-        circle: player,
-        rectangle: boundary,
-      })
-    ) {
-      player.velocity.x = 0;
-      player.velocity.y = 0;
-    }
   });
-  player.update();
+  player.update(delta, boundaries);
 
   ghost.forEach((ghost) => {
     ghost.update();
@@ -256,9 +249,6 @@ function animate() {
       ghost.prevCollisions = collisions;
 
     if (JSON.stringify(collisions) !== JSON.stringify(ghost.prevCollisions)) {
-      console.log(collisions);
-      console.log(ghost.prevCollisions);
-
       if (ghost.velocity.x > 0) ghost.prevCollisions.push("right");
       else if (ghost.velocity.x < 0) ghost.prevCollisions.push("left");
       if (ghost.velocity.y < 0) ghost.prevCollisions.push("up");
@@ -267,10 +257,8 @@ function animate() {
       const pathways = ghost.prevCollisions.filter((collision) => {
         return !collisions.includes(collision);
       });
-      console.log({ pathways });
 
       const direction = pathways[Math.floor(Math.random() * pathways.length)];
-      console.log(direction);
 
       switch (direction) {
         case "down":
