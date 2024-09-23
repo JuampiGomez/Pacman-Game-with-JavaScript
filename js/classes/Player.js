@@ -1,4 +1,5 @@
-const GAGA = 200;
+const SPEED = 200;
+const CHOMP_RATE = 30;
 
 class Player {
   constructor({ position, velocity }) {
@@ -87,7 +88,7 @@ class Player {
 
   isValidMove(boundaries) {
     const PIXEL_BUFFER = 5;
-    console.log("butoo");
+
     for (const boundary of boundaries) {
       if (
         circleCollidesWithRectangle({
@@ -120,13 +121,15 @@ class Player {
       this.velocity.y = 0;
       this.snapToGrid();
     } else {
-      this.position.x += this.velocity.x * delta * GAGA;
-      this.position.y += this.velocity.y * delta * GAGA;
+      this.position.x += this.velocity.x * delta * SPEED;
+      this.position.y += this.velocity.y * delta * SPEED;
     }
 
+    // chomp
     if (this.radians < 0 || this.radians > 0.75) {
       this.oprenRate = -this.oprenRate;
     }
-    this.radians += this.oprenRate;
+    this.radians = Math.max(0, Math.min(this.radians, 0.75));
+    this.radians += this.oprenRate * delta * CHOMP_RATE;
   }
 }

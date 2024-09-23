@@ -11,47 +11,49 @@ const powerUps = [];
 const ghost = [
   new Ghost({
     position: {
-      x: Boundary.width * 6 + Boundary.width / 2,
-      y: Boundary.height + Boundary.height / 2,
+      x: Boundary.width * 5 + Boundary.width / 2,
+      y: Boundary.height * 5 + Boundary.height / 2,
     },
     velocity: {
-      x: Ghost.speed,
+      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
       y: 0,
     },
+    imgSrc: "./img/sprites/redGhost.png",
+    state: "active",
   }),
-  // new Ghost({
-  //   position: {
-  //     x: Boundary.width * 6 + Boundary.width / 2,
-  //     y: Boundary.height * 7 + Boundary.height / 2,
-  //   },
-  //   velocity: {
-  //     x: Ghost.speed,
-  //     y: 0,
-  //   },
-  //   color: "purple",
-  // }),
-  // new Ghost({
-  //   position: {
-  //     x: Boundary.width * 3 + Boundary.width / 2,
-  //     y: Boundary.height * 7 + Boundary.height / 2,
-  //   },
-  //   velocity: {
-  //     x: Ghost.speed,
-  //     y: 0,
-  //   },
-  //   color: "pink",
-  // }),
-  // new Ghost({
-  //   position: {
-  //     x: Boundary.width * 3 + Boundary.width / 2,
-  //     y: Boundary.height * 9 + Boundary.height / 2,
-  //   },
-  //   velocity: {
-  //     x: Ghost.speed,
-  //     y: 0,
-  //   },
-  //   color: "green",
-  // }),
+  new Ghost({
+    position: {
+      x: Boundary.width * 5 + Boundary.width / 2,
+      y: Boundary.height * 6 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+      y: 0,
+    },
+    imgSrc: "./img/sprites/greenGhost.png",
+  }),
+  new Ghost({
+    position: {
+      x: Boundary.width * 6 + Boundary.width / 2,
+      y: Boundary.height * 6 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+      y: 0,
+    },
+    imgSrc: "./img/sprites/orangeGhost.png",
+  }),
+  new Ghost({
+    position: {
+      x: Boundary.width * 4 + Boundary.width / 2,
+      y: Boundary.height * 6 + Boundary.height / 2,
+    },
+    velocity: {
+      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+      y: 0,
+    },
+    imgSrc: "./img/sprites/yellowGhost.png",
+  }),
 ];
 
 const player = new Player({
@@ -84,6 +86,8 @@ let lastKey = "";
 let score = 0;
 let animationId;
 let prevMs = Date.now();
+let accumulatedTime = 0;
+const ghostReleasedIntervals = [0, 2, 4, 6];
 
 const boundaries = generateBoundaries();
 
@@ -94,6 +98,8 @@ function animate() {
   const currentMs = Date.now();
   const delta = (currentMs - prevMs) / 1000;
   prevMs = currentMs;
+
+  accumulatedTime += delta;
 
   if (keys.w.pressed && lastKey === "w") player.move("up");
   else if (keys.a.pressed && lastKey === "a") player.move("left");
@@ -176,111 +182,12 @@ function animate() {
   });
   player.update(delta, boundaries);
 
-  ghost.forEach((ghost) => {
-    ghost.update();
+  ghost.forEach((ghost, i) => {
+    ghost.update(delta, boundaries);
 
-    const collisions = [];
-    boundaries.forEach((boundary) => {
-      if (
-        !collisions.includes("right") &&
-        circleCollidesWithRectangle({
-          circle: {
-            ...ghost,
-            velocity: {
-              x: ghost.speed,
-              y: 0,
-            },
-          },
-          rectangle: boundary,
-        })
-      ) {
-        collisions.push("right");
-      }
-      if (
-        !collisions.includes("left") &&
-        circleCollidesWithRectangle({
-          circle: {
-            ...ghost,
-            velocity: {
-              x: -ghost.speed,
-              y: 0,
-            },
-          },
-          rectangle: boundary,
-        })
-      ) {
-        collisions.push("left");
-      }
+    if (ghost.state === "active" || ghost.state === "enteringGame") return;
 
-      if (
-        !collisions.includes("up") &&
-        circleCollidesWithRectangle({
-          circle: {
-            ...ghost,
-            velocity: {
-              x: 0,
-              y: -ghost.speed,
-            },
-          },
-          rectangle: boundary,
-        })
-      ) {
-        collisions.push("up");
-      }
-
-      if (
-        !collisions.includes("down") &&
-        circleCollidesWithRectangle({
-          circle: {
-            ...ghost,
-            velocity: {
-              x: 0,
-              y: ghost.speed,
-            },
-          },
-          rectangle: boundary,
-        })
-      ) {
-        collisions.push("down");
-      }
-    });
-
-    if (collisions.length > ghost.prevCollisions.length)
-      ghost.prevCollisions = collisions;
-
-    if (JSON.stringify(collisions) !== JSON.stringify(ghost.prevCollisions)) {
-      if (ghost.velocity.x > 0) ghost.prevCollisions.push("right");
-      else if (ghost.velocity.x < 0) ghost.prevCollisions.push("left");
-      if (ghost.velocity.y < 0) ghost.prevCollisions.push("up");
-      else if (ghost.velocity.y > 0) ghost.prevCollisions.push("down");
-
-      const pathways = ghost.prevCollisions.filter((collision) => {
-        return !collisions.includes(collision);
-      });
-
-      const direction = pathways[Math.floor(Math.random() * pathways.length)];
-
-      switch (direction) {
-        case "down":
-          ghost.velocity.y = ghost.speed;
-          ghost.velocity.x = 0;
-          break;
-        case "up":
-          ghost.velocity.y = -ghost.speed;
-          ghost.velocity.x = 0;
-          break;
-        case "right":
-          ghost.velocity.y = 0;
-          ghost.velocity.x = ghost.speed;
-          break;
-        case "left":
-          ghost.velocity.y = 0;
-          ghost.velocity.x = -ghost.speed;
-          break;
-      }
-
-      ghost.prevCollisions = [];
-    }
+    if (accumulatedTime > ghostReleasedIntervals[i]) ghost.enterGame();
   });
 
   //end of animation
