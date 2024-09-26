@@ -130,6 +130,22 @@ class Player {
     }
     this.radians = Math.max(0, Math.min(this.radians, 0.75));
     this.radians += this.oprenRate * delta * CHOMP_RATE;
+
+    // transport between sections
+    this.checkTransport();
+  }
+
+  checkTransport() {
+    if (this.position.y + this.radius < 0) {
+      this.position.y = canvas.height;
+      console.log("butoo");
+    } else if (this.position.y - this.radius > canvas.height) {
+      this.position.y = 0;
+    } else if (this.position.x + this.radius < 0) {
+      this.position.x = canvas.width;
+    } else if (this.position.x - this.radius > canvas.width) {
+      this.position.x = 0;
+    }
   }
 
   die() {
@@ -143,8 +159,6 @@ class Player {
         }, 750);
       },
     });
-
-    console.log("p");
   }
 
   update(delta, boundaries) {
