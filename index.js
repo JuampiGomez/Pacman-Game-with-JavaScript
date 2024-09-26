@@ -8,64 +8,9 @@ canvas.height = innerHeight;
 
 const pellets = [];
 const powerUps = [];
-const ghost = [
-  new Ghost({
-    position: {
-      x: Boundary.width * 5 + Boundary.width / 2,
-      y: Boundary.height * 5 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
-      y: 0,
-    },
-    imgSrc: "./img/sprites/redGhost.png",
-    state: "active",
-  }),
-  new Ghost({
-    position: {
-      x: Boundary.width * 5 + Boundary.width / 2,
-      y: Boundary.height * 6 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
-      y: 0,
-    },
-    imgSrc: "./img/sprites/greenGhost.png",
-  }),
-  new Ghost({
-    position: {
-      x: Boundary.width * 6 + Boundary.width / 2,
-      y: Boundary.height * 6 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
-      y: 0,
-    },
-    imgSrc: "./img/sprites/orangeGhost.png",
-  }),
-  new Ghost({
-    position: {
-      x: Boundary.width * 4 + Boundary.width / 2,
-      y: Boundary.height * 6 + Boundary.height / 2,
-    },
-    velocity: {
-      x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
-      y: 0,
-    },
-    imgSrc: "./img/sprites/yellowGhost.png",
-  }),
-];
+let ghost = [];
 
-const player = new Player({
-  position: {
-    x: Boundary.width + Boundary.width / 2,
-    y: Boundary.height + Boundary.height / 2,
-  },
-  velocity: {
-    x: 0,
-    y: 0,
-  },
-});
+let player = {};
 
 const keys = {
   w: {
@@ -91,6 +36,89 @@ const ghostReleasedIntervals = [0, 2, 4, 6];
 
 const boundaries = generateBoundaries();
 
+const game = {
+  reset() {
+    accumulatedTime = 0;
+    player = new Player({
+      position: {
+        x: Boundary.width + Boundary.width / 2,
+        y: Boundary.height + Boundary.height / 2,
+      },
+      velocity: {
+        x: 0,
+        y: 0,
+      },
+    });
+
+    ghost = [
+      new Ghost({
+        position: {
+          x: Boundary.width * 5 + Boundary.width / 2,
+          y: Boundary.height * 5 + Boundary.height / 2,
+        },
+        velocity: {
+          x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+          y: 0,
+        },
+        imgSrc: "./img/sprites/redGhost.png",
+        state: "active",
+      }),
+      new Ghost({
+        position: {
+          x: Boundary.width * 5 + Boundary.width / 2,
+          y: Boundary.height * 6 + Boundary.height / 2,
+        },
+        velocity: {
+          x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+          y: 0,
+        },
+        imgSrc: "./img/sprites/greenGhost.png",
+      }),
+      new Ghost({
+        position: {
+          x: Boundary.width * 6 + Boundary.width / 2,
+          y: Boundary.height * 6 + Boundary.height / 2,
+        },
+        velocity: {
+          x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+          y: 0,
+        },
+        imgSrc: "./img/sprites/orangeGhost.png",
+      }),
+      new Ghost({
+        position: {
+          x: Boundary.width * 4 + Boundary.width / 2,
+          y: Boundary.height * 6 + Boundary.height / 2,
+        },
+        velocity: {
+          x: Ghost.speed * (Math.random() < 0.5) ? -1 : 1,
+          y: 0,
+        },
+        imgSrc: "./img/sprites/yellowGhost.png",
+      }),
+    ];
+  },
+
+  initStart() {
+    player.state = "paused";
+    ghost.forEach((ghostNow) => {
+      ghostNow.state = null;
+    });
+
+    setTimeout(() => {
+      ghost[0].state = "active";
+      ghost.forEach((actualGhost, i) => {
+        if (i === 0) return;
+        else ghost.state = null;
+      });
+
+      player.state = "active";
+    }, 1000);
+  },
+};
+
+game.reset();
+
 function animate() {
   animationId = requestAnimationFrame(animate);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -99,7 +127,7 @@ function animate() {
   const delta = (currentMs - prevMs) / 1000;
   prevMs = currentMs;
 
-  accumulatedTime += delta;
+  if (player.state === "active") accumulatedTime += delta;
 
   if (keys.w.pressed && lastKey === "w") player.move("up");
   else if (keys.a.pressed && lastKey === "a") player.move("left");
@@ -117,12 +145,16 @@ function animate() {
         actualGhost.position.x - player.position.x,
         actualGhost.position.y - player.position.y
       ) <
-      actualGhost.radius + player.radius
+        actualGhost.radius + player.radius &&
+      player.state === "active"
     ) {
       if (actualGhost.scared) {
         ghost.splice(i, 1);
       } else {
-        cancelAnimationFrame(animationId);
+        player.die();
+        ghost.forEach((ghostNow) => {
+          ghostNow.state = "paused";
+        });
       }
     }
   }
@@ -185,9 +217,8 @@ function animate() {
   ghost.forEach((ghost, i) => {
     ghost.update(delta, boundaries);
 
-    if (ghost.state === "active" || ghost.state === "enteringGame") return;
-
-    if (accumulatedTime > ghostReleasedIntervals[i]) ghost.enterGame();
+    if (accumulatedTime > ghostReleasedIntervals[i] && !ghost.state)
+      ghost.enterGame();
   });
 
   //end of animation

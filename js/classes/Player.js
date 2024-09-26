@@ -13,6 +13,7 @@ class Player {
       x: 0,
       y: 0,
     };
+    this.state = "active";
   }
 
   draw() {
@@ -108,9 +109,7 @@ class Player {
     return true;
   }
 
-  update(delta, boundaries) {
-    this.draw();
-
+  movePlayerWithInput(delta, boundaries) {
     if (this.isValidMove(boundaries)) {
       this.velocity.x = this.desiredDirection.x;
       this.velocity.y = this.desiredDirection.y;
@@ -131,5 +130,33 @@ class Player {
     }
     this.radians = Math.max(0, Math.min(this.radians, 0.75));
     this.radians += this.oprenRate * delta * CHOMP_RATE;
+  }
+
+  die() {
+    this.state = "initDeath";
+    gsap.to(this, {
+      radians: Math.PI - 0.00001,
+      onComplete: () => {
+        setTimeout(() => {
+          game.reset();
+          game.initStart();
+        }, 750);
+      },
+    });
+
+    console.log("p");
+  }
+
+  update(delta, boundaries) {
+    this.draw();
+
+    switch (this.state) {
+      case "active":
+        this.movePlayerWithInput(delta, boundaries);
+        break;
+      case "initDeath":
+        this.state = "death";
+        break;
+    }
   }
 }
